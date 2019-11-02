@@ -1,2 +1,5 @@
 config.ini
 image_samples
+build
+dist
+main.spec
