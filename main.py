@@ -27,6 +27,7 @@ except IOError:
     file.close()
 
     print("Add Parameters and relaunch!")
+    k = input("press close to exit")
     quit()
 
 # Load Telegram Info
@@ -52,11 +53,18 @@ y2_tuning = float(config['Bounding Box Fine Tuning']['y2_tuning'])
 mapping = json.loads(config['Dialog']['mapping'])
 dialog_notif = str(config['Dialog']['dialog_notif']).split("```")
 dialog_fail = str(config['Dialog']['dialog_fail']).split("```")
+shutup_dialog = str(config['Dialog']['dialog_shutup'])
+unshutup_dialog = str(config['Dialog']['dialog_unshutup'])
+shh_dialog = str(config['Dialog']['dialog_shh'])
+unshh_dialog = str(config['Dialog']['dialog_unshh'])
+timer_reset_dialog = str(config['Dialog']['dialog_timer_reset'])
 
 updater = Updater(token, use_context=True)
 
 shut_up = False
 shh = False
+
+start_time = time.time()
 
 
 def process_image(box, debug=False):
@@ -122,26 +130,23 @@ def generate_message():
 def cycle(cycle_time_val):
     global shut_up
     global shh
-    start = time.time()
+    global start_time
+    start_time = time.time()
     cycle_text_time = time.time()
-    current_day = time.localtime().tm_mday
-    current_hour = time.localtime().tm_hour
-
 
     while True:
         if time.time() - cycle_text_time >= 60:
             cycle_text_time = time.time()
             print("Running {} {}...".format(time.localtime().tm_hour, time.localtime().tm_min))
 
-        if shh and time.localtime().tm_mday is not current_day:
+        if shh and time.localtime().tm_mday is not time.localtime().tm_mday:
             shh = False
-            current_day = time.localtime().tm_mday
 
-        if time.time() - start >= cycle_time and not shut_up and not shh:
-            start = time.time()
+        if time.time() - start_time >= cycle_time and not shut_up and not shh:
+            start_time = time.time()
             rest_time = False
             for t in rest_hours:
-                if current_hour == int(t):
+                if time.localtime().tm_hour == int(t):
                     print("Rest Hour '" + t + "' - Notification Skipped")
                     rest_time = True
 
@@ -156,22 +161,16 @@ def notify_command(update, context):
 
 def shut_up_command(update, context):
     global shut_up
-    if shut_up:
-        update.message.reply_text("Hey! I got it the first time.")
-    else:
-        shut_up = True
-        update.message.reply_text("Fine, I wont bother you anymore.")
+    shut_up = True
+    update.message.reply_text(shutup_dialog)
 
 
 def un_shut_up_command(update, context):
     global shut_up
     global shh
-    if shut_up:
-        shut_up = False
-        shh = False
-        update.message.reply_text("Did you miss me?")
-    else:
-        update.message.reply_text("You told me that already.")
+    shh = False
+    shut_up = False
+    update.message.reply_text(unshutup_dialog)
 
 
 def config_command(update, context):
@@ -185,29 +184,29 @@ def config_command(update, context):
             output += "\n"
     output += "[Vars]\n"
     output += "shut_up = " + str(shut_up) + "\n"
-    output += "shh = " + str(shh)
+    output += "shh = " + str(shh) + "\n"
+    output += "Time Since Start " + str(int(time.time() - start_time)) + " Second(s)\n"
     update.message.reply_text(output)
 
 
 def shh_command(update, context):
     global shh
-    if shh:
-        update.message.reply_text("Hey! I got it the first time.")
-    else:
-        shh = True
-        update.message.reply_text("Fine, I won't bother you until tomorrow.")
+    shh = True
+    update.message.reply_text(shh_dialog)
 
 
 def unshh_command(update, context):
     global shh
     global shut_up
+    shh = False
+    shut_up = False
+    update.message.reply_text(unshh_dialog)
 
-    if shh:
-        shh = False
-        shut_up = False
-        update.message.reply_text("Did you miss me?")
-    else:
-        update.message.reply_text("You already told me that.")
+
+def reset_timer_command(update, context):
+    global start_time
+    start_time = time.time()
+    update.message.reply_text(timer_reset_dialog)
 
 
 def main():
@@ -219,6 +218,7 @@ def main():
     dp.add_handler(CommandHandler("config", config_command))
     dp.add_handler(CommandHandler("shh", shh_command))
     dp.add_handler(CommandHandler("unshh", unshh_command))
+    dp.add_handler(CommandHandler("resettimer", reset_timer_command))
 
     updater.start_polling()
     cycle(int(cycle_time))
