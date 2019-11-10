@@ -154,6 +154,7 @@ def cycle(cycle_time_val):
                 text = generate_message()
                 updater.bot.send_message(group_chat_id, generate_message())
 
+        time.sleep(30)
 
 def notify_command(update, context):
     update.message.reply_text(generate_message())
